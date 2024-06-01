@@ -1,9 +1,14 @@
 const express = require("express");
 const morgan = require("morgan");
 const cors = require("cors");
+const { connectDB } = require("./mongo");
+
+const { Person } = require("./mongo.js");
 
 const app = express();
 app.use(cors());
+
+connectDB();
 
 app.use(express.static("public"));
 
@@ -22,33 +27,9 @@ app.use((req, res, next) => {
   next();
 });
 
-let persons = [
-  {
-    id: 1,
-    name: "Arto Hellas",
-    number: "040-123456",
-  },
-  {
-    id: 2,
-    name: "Ada Lovelace",
-    number: "39-44-5323523",
-  },
-  {
-    id: 3,
-    name: "Dan Abramov",
-    number: "12-43-234345",
-  },
-  {
-    id: 4,
-    name: "Mary Poppendieck",
-    number: "39-23-6423122",
-  },
-];
-
-app.post("/api/persons", (request, response) => {
+app.post("/api/persons", async (request, response) => {
   const { name, number } = request.body;
 
-  // Verifica si falta el nombre o el número
   if (!name || !number) {
     return response.status(400).json({
       error: "Missing name or number",
@@ -56,7 +37,7 @@ app.post("/api/persons", (request, response) => {
   }
 
   // Verifica si el nombre ya existe en la agenda
-  const existingPerson = persons.find((p) => p.name === name);
+  const existingPerson = await Person.findOne({ name });
   if (existingPerson) {
     return response.status(400).json({
       error: "name must be unique",
@@ -64,16 +45,9 @@ app.post("/api/persons", (request, response) => {
   }
 
   // Genera un ID aleatorio utilizando Math.random()
-  const randomId = parseInt(Math.random() * 10000000);
 
-  const person = {
-    id: randomId,
-    name: name,
-    number: number,
-  };
-
-  // Añade la nueva persona a la lista de personas
-  persons.push(person);
+  const person = new Person({ name, number });
+  await person.save();
 
   response.json(person);
 });
@@ -82,17 +56,28 @@ app.get("/", (request, response) => {
   response.send("<h1>Hallo Welt!</h1>");
 });
 
-app.get("/api/persons", (request, response) => {
-  response.json(persons);
+app.get("/api/persons", async (request, response) => {
+  try {
+    const persons = await Person.find({});
+    response.json(persons);
+  } catch (error) {
+    console.error(error);
+    response.status(500).send("Internal Server Error");
+  }
 });
 
-app.get("/api/persons/:id", (request, response) => {
-  const id = Number(request.params.id);
-  const person = persons.find((person) => person.id === id);
-  if (person) {
-    response.json(person);
-  } else {
-    response.status(404).send("Not found");
+app.get("/api/persons/:id", async (request, response) => {
+  const id = request.params.id;
+  try {
+    const person = await Person.findById(id);
+    if (person) {
+      response.json(person);
+    } else {
+      response.status(404).send("Not found");
+    }
+  } catch (error) {
+    console.error(error);
+    response.status(500).send("Internal Server Error");
   }
 });
 

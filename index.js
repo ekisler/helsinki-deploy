@@ -4,6 +4,8 @@ const cors = require("cors");
 const { connectDB } = require("./mongo");
 const { Person } = require("./src/models/persons.js");
 const errorHandler = require("./src/middleware/errorHandler.js");
+const isValidPhoneNumber = require('./src/utils/validator.js');
+
 
 const app = express();
 app.use(cors());
@@ -35,6 +37,12 @@ app.post("/api/persons", async (request, response, next) => {
     if (!name || !number) {
       return response.status(400).json({
         error: "Missing name or number",
+      });
+    }
+
+    if (!isValidPhoneNumber(number)) {
+      return response.status(400).json({
+        error: "Invalid phone number",
       });
     }
 
@@ -102,8 +110,9 @@ app.get("/api/persons/:id", async (request, response, next) => {
 });
 
 // Ruta DELETE para eliminar un registro
-app.delete("/api/persons/:id", (request, response, next) => {
-  Person.findByIdAndDelete(request.params.id)
+app.delete("/api/persons/:_id", (request, response, next) => {
+console.log("request.params")
+  Person.findByIdAndDelete(request.params._id)
     .then((result) => {
       response.status(204).end();
     })
